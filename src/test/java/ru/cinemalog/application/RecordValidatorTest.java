@@ -57,4 +57,58 @@ class RecordValidatorTest {
         var p = new SeriesProgress(1, List.of(10), 0, List.of(11));
         assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("watchedEpisodes"));
     }
+
+    @Test
+    void givenMissingContentType_whenValidate_thenContentTypeIsRequired() {
+        var e = validator.validate("A", null, null, null, Status.WANT_TO_WATCH, null, "", null);
+        assertTrue(e.containsKey("contentType"));
+    }
+
+    @Test
+    void givenMissingStatus_whenValidate_thenStatusIsRequired() {
+        var e = validator.validate("A", ContentType.FILM, null, null, null, null, "", null);
+        assertTrue(e.containsKey("status"));
+    }
+
+    @Test
+    void givenTotalSeasonsZero_whenValidate_thenRejected() {
+        var p = new SeriesProgress(0, List.of(), 0, List.of());
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("totalSeasons"));
+    }
+
+    @Test
+    void givenTotalSeasonsAbove99_whenValidate_thenRejected() {
+        var p = new SeriesProgress(100, List.of(), 0, List.of());
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("totalSeasons"));
+    }
+
+    @Test
+    void givenEpisodesPerSeasonCountMismatch_whenValidate_thenRejected() {
+        var p = new SeriesProgress(2, List.of(10), 0, List.of(0, 0));
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("episodesPerSeason"));
+    }
+
+    @Test
+    void givenEpisodesPerSeasonZero_whenValidate_thenRejected() {
+        var p = new SeriesProgress(1, List.of(0), 0, List.of(0));
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("episodesPerSeason"));
+    }
+
+    @Test
+    void givenWatchedSeasonsAboveTotal_whenValidate_thenRejected() {
+        var p = new SeriesProgress(2, List.of(10, 8), 3, List.of(0, 0));
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("watchedSeasons"));
+    }
+
+    @Test
+    void givenWatchedEpisodesCountMismatch_whenValidate_thenRejected() {
+        var p = new SeriesProgress(2, List.of(10, 8), 0, List.of(0));
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("watchedEpisodes"));
+    }
+
+    @Test
+    void givenWatchedEpisodesNegative_whenValidate_thenRejected() {
+        var p = new SeriesProgress(1, List.of(10), 0, List.of(-1));
+        assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).containsKey("watchedEpisodes"));
+    }
 }

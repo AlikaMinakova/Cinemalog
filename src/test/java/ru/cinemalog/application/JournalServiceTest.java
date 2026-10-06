@@ -156,6 +156,16 @@ class JournalServiceTest {
     }
 
     @Test
+    void givenSeries_whenIncrementCompletesSeason_thenWatchedSeasonsIncreases() {
+        var p = new SeriesProgress(1, List.of(2), 0, List.of(1));
+        var r = new MovieRecord(UUID.randomUUID(), "S", ContentType.SERIES, 2020, null, Status.WATCHING, null, "", p, LocalDateTime.now());
+        when(repo.findById(r.id())).thenReturn(Optional.of(r));
+        assertEquals(2, service.incrementEpisode(r.id(), 0));
+        assertEquals(1, p.watchedSeasons());
+        verify(repo).update(r);
+    }
+
+    @Test
     void givenTwoRecordsWithSameTitleCase_whenSearch_thenMatchingRecordIsReturned() {
         var a = film("Dune", Status.WATCHED, 8);
         var b = film("Matrix", Status.WATCHED, 9);
