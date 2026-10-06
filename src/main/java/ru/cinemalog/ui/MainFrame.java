@@ -5,12 +5,18 @@ import ru.cinemalog.domain.*;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.TableCellEditor;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
 
 public final class MainFrame extends JFrame {
+    private static final int YEAR_MIN = 1888, YEAR_MAX = 9999;
+    private static final String ALL_GENRES = "Все жанры";
     private final JournalService service;
     private final BackupService backup;
     private final JTable table = new JTable();
@@ -19,15 +25,14 @@ public final class MainFrame extends JFrame {
     private final JTextArea note = new JTextArea(4, 40);
     private final JTextField search = new JTextField(18);
     private final JComboBox<String> typeFilter = new JComboBox<>(new String[]{"Все", "Только фильмы", "Только сериалы"});
-    private final JComboBox<Genre> genreFilter = new JComboBox<>();
-    private final JTextField from = new JTextField(5), to = new JTextField(5);
+    private final JComboBox<Object> genreFilter = new JComboBox<>();
+    private final JSpinner from = new JSpinner(new SpinnerNumberModel(YEAR_MIN, YEAR_MIN, YEAR_MAX, 1));
+    private final JSpinner to = new JSpinner(new SpinnerNumberModel(YEAR_MAX, YEAR_MIN, YEAR_MAX, 1));
     private final JComboBox<String> ratingFilter = new JComboBox<>(new String[]{"Все", "Только с оценкой", "Только без оценки"});
     private final JComboBox<String> sort = new JComboBox<>(new String[]{"Дата добавления", "Название", "Год выпуска", "Оценка"});
     private final JComboBox<String> direction = new JComboBox<>(new String[]{"По возрастанию", "По убыванию"});
     private Status section = null;
     private List<MovieRecord> rows = List.of();
-    private int currentSeason = 0;
-    private final JComboBox<Integer> seasonBox = new JComboBox<>();
 
     public MainFrame(JournalService service, BackupService backup) {
         super("CinemaLog");
@@ -101,17 +106,22 @@ public final class MainFrame extends JFrame {
         tools.add(search);
         search.addActionListener(e -> refresh());
         direction.setSelectedIndex(1);
+        tools.add(new JLabel("Тип:"));
         tools.add(typeFilter);
+        tools.add(new JLabel("Жанр:"));
+        genreFilter.addItem(ALL_GENRES);
         for (Genre g : Genre.values()) genreFilter.addItem(g);
-        genreFilter.insertItemAt(null, 0);
         genreFilter.setSelectedIndex(0);
         tools.add(genreFilter);
         tools.add(new JLabel("Год от"));
         tools.add(from);
         tools.add(new JLabel("до"));
         tools.add(to);
+        tools.add(new JLabel("Оценка:"));
         tools.add(ratingFilter);
+        tools.add(new JLabel("Сортировка:"));
         tools.add(sort);
+        tools.add(new JLabel("Направление:"));
         tools.add(direction);
         JButton apply = new JButton("Применить"), clear = new JButton("Сбросить фильтры");
         apply.addActionListener(e -> refresh());
@@ -119,9 +129,11 @@ public final class MainFrame extends JFrame {
             search.setText("");
             typeFilter.setSelectedIndex(0);
             genreFilter.setSelectedIndex(0);
-            from.setText("");
-            to.setText("");
+            from.setValue(YEAR_MIN);
+            to.setValue(YEAR_MAX);
             ratingFilter.setSelectedIndex(0);
+            sort.setSelectedIndex(0);
+            direction.setSelectedIndex(1);
             refresh();
         });
         tools.add(apply);
@@ -130,47 +142,22 @@ public final class MainFrame extends JFrame {
         table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         table.setModel(model());
         table.setAutoCreateRowSorter(true);
-        JComboBox<Integer> ratingEditor = new JComboBox<>();
-        for (int i = 1; i <= 10; i++) ratingEditor.addItem(i);
-        table.getColumnModel().getColumn(5).setCellEditor(new DefaultCellEditor(ratingEditor));
-        table.getColumnModel().getColumn(0).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
-            public Component getTableCellRendererComponent(JTable t, Object value, Boolean selected, Boolean focused, int row, int column) {
-                Component c = super.getTableCellRendererComponent(t, value, selected, focused, row, column);
-                if (c instanceof JLabel label) {
-                    String text = value == null ? "" : value.toString();
-                    String q = search.getText().trim();
-                    if (q.length() >= 2 && !selected) {
-                        String safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
-                        String lower = safe.toLowerCase(Locale.ROOT);
-                        String ql = q.toLowerCase(Locale.ROOT);
-                        int at = lower.indexOf(ql);
-                        if (at >= 0)
-                            label.setText("<html>" + safe.substring(0, at) + "<b>" + safe.substring(at, at + ql.length()) + "</b>" + safe.substring(at + ql.length()) + "</html>");
-                    }
-                }
-                return c;
-            }
-        });
+        configureColumns();
         table.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) updateNote();
         });
         table.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mousePressed(java.awt.event.MouseEvent e) {
+                saveNote();
+            }
             public void mouseClicked(java.awt.event.MouseEvent e) {
-                if (e.getClickCount() == 2 && table.getSelectedRow() >= 0) editSelected();
+                if (e.getClickCount() == 2 && table.getSelectedRow() >= 0 && table.columnAtPoint(e.getPoint()) != 7) editSelected();
             }
         });
         JPanel center = new JPanel(new BorderLayout());
         center.add(new JScrollPane(table), BorderLayout.CENTER);
         center.add(emptyLabel, BorderLayout.SOUTH);
         p.add(center, BorderLayout.CENTER);
-        JPanel progressBar = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        progressBar.add(new JLabel("Сезон:"));
-        for (int i = 1; i <= 99; i++) seasonBox.addItem(i);
-        seasonBox.setSelectedIndex(0);
-        JButton plus = new JButton("+1 серия");
-        plus.addActionListener(e -> incrementEpisode());
-        progressBar.add(seasonBox);
-        progressBar.add(plus);
         JPanel bottom = new JPanel(new BorderLayout());
         note.setLineWrap(true);
         note.setWrapStyleWord(true);
@@ -209,16 +196,13 @@ public final class MainFrame extends JFrame {
             }
         });
         table.setComponentPopupMenu(menu);
-        JPanel south = new JPanel(new BorderLayout());
-        south.add(progressBar, BorderLayout.NORTH);
-        south.add(bottom, BorderLayout.CENTER);
-        p.add(south, BorderLayout.SOUTH);
+        p.add(bottom, BorderLayout.SOUTH);
         return p;
     }
 
     private AbstractTableModel model() {
         return new AbstractTableModel() {
-            String[] c = {"Название", "Тип", "Год", "Жанр", "Статус", "Оценка", "Прогресс", "Дата добавления"};
+            String[] c = {"Название", "Тип", "Год", "Жанр", "Статус", "Оценка", "Прогресс", "Действия", "Дата добавления"};
 
             public int getRowCount() {
                 return rows.size();
@@ -233,7 +217,12 @@ public final class MainFrame extends JFrame {
             }
 
             public boolean isCellEditable(int r, int col) {
-                return col == 5;
+                if (col == 5) return true;
+                if (col == 7) {
+                    MovieRecord x = rows.get(r);
+                    return x.contentType() == ContentType.SERIES && x.seriesProgress() != null;
+                }
+                return false;
             }
 
             public void setValueAt(Object value, int r, int col) {
@@ -248,8 +237,8 @@ public final class MainFrame extends JFrame {
                 }
             }
 
-            public Class<?> getColumnClass(int c) {
-                return c == 5 ? Integer.class : String.class;
+            public Class<?> getColumnClass(int col) {
+                return col == 5 ? Integer.class : String.class;
             }
 
             public Object getValueAt(int r, int col) {
@@ -260,8 +249,9 @@ public final class MainFrame extends JFrame {
                     case 2 -> x.releaseYear() == null ? "—" : x.releaseYear();
                     case 3 -> x.genre() == null ? "—" : x.genre();
                     case 4 -> x.status();
-                    case 5 -> x.rating() == null ? "—" : x.rating();
+                    case 5 -> x.rating();
                     case 6 -> progress(x);
+                    case 7 -> (x.contentType() == ContentType.SERIES && x.seriesProgress() != null) ? "+1 серия" : "—";
                     default -> x.addedAt().toString();
                 };
             }
@@ -277,15 +267,50 @@ public final class MainFrame extends JFrame {
         rows = service.query(query());
         table.setModel(model());
         table.setAutoCreateRowSorter(true);
+        configureColumns();
         updateNote();
         emptyLabel.setText(rows.isEmpty() && hasAnyFilter() ? (search.getText().trim().length() >= 2 ? "Ничего не найдено по запросу \"" + search.getText().trim() + "\"" : "Нет записей, соответствующих выбранным фильтрам") : "");
     }
 
+    private void configureColumns() {
+        JComboBox<Integer> ratingEditor = new JComboBox<>();
+        for (int i = 1; i <= 10; i++) ratingEditor.addItem(i);
+        table.getColumnModel().getColumn(5).setCellEditor(new DefaultCellEditor(ratingEditor));
+        table.getColumnModel().getColumn(5).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean foc, int row, int col) {
+                Component c = super.getTableCellRendererComponent(t, value, sel, foc, row, col);
+                if (c instanceof JLabel l) l.setText(value == null ? "—" : value.toString());
+                return c;
+            }
+        });
+        table.getColumnModel().getColumn(7).setCellRenderer(new ProgressButtonRenderer());
+        table.getColumnModel().getColumn(7).setCellEditor(new ProgressButtonEditor());
+        table.getColumnModel().getColumn(0).setCellRenderer(new javax.swing.table.DefaultTableCellRenderer() {
+            public Component getTableCellRendererComponent(JTable t, Object value, boolean selected, boolean focused, int row, int column) {
+                Component c = super.getTableCellRendererComponent(t, value, selected, focused, row, column);
+                if (c instanceof JLabel label) {
+                    String text = value == null ? "" : value.toString();
+                    String q = search.getText().trim();
+                    if (q.length() >= 2 && !selected) {
+                        String safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;");
+                        String lower = safe.toLowerCase(Locale.ROOT);
+                        String ql = q.toLowerCase(Locale.ROOT);
+                        int at = lower.indexOf(ql);
+                        if (at >= 0)
+                            label.setText("<html>" + safe.substring(0, at) + "<b>" + safe.substring(at, at + ql.length()) + "</b>" + safe.substring(at + ql.length()) + "</html>");
+                    }
+                }
+                return c;
+            }
+        });
+    }
+
     private JournalService.Query query() {
         ContentType ct = typeFilter.getSelectedIndex() == 1 ? ContentType.FILM : typeFilter.getSelectedIndex() == 2 ? ContentType.SERIES : null;
-        Genre g = (Genre) genreFilter.getSelectedItem();
-        Integer yf = parse(from.getText()), yt = parse(to.getText());
-        Boolean hr = ratingFilter.getSelectedIndex() == 1 ? true : ratingFilter.getSelectedIndex() == 2 ? false : null;
+        Object sel = genreFilter.getSelectedItem();
+        Genre g = sel instanceof Genre gg ? gg : null;
+        Integer yf = yearFromValue(), yt = yearToValue();
+        Boolean hr = ratingFilter.getSelectedIndex() == 1 ? Boolean.TRUE : ratingFilter.getSelectedIndex() == 2 ? Boolean.FALSE : null;
         Comparator<MovieRecord> cmp = switch (sort.getSelectedIndex()) {
             case 1 -> Comparator.comparing(r -> r.title().toLowerCase(Locale.ROOT));
             case 2 -> Comparator.comparing(r -> r.releaseYear(), Comparator.nullsLast(Integer::compareTo));
@@ -293,20 +318,23 @@ public final class MainFrame extends JFrame {
             default -> Comparator.comparing(MovieRecord::addedAt);
         };
         String q = search.getText().trim();
+        boolean searching = q.length() >= 2;
         if (q.length() < 2) q = "";
-        return new JournalService.Query(q, ct, g, yf, yt, hr, section, cmp, direction.getSelectedIndex() == 1);
+        return new JournalService.Query(q, ct, g, yf, yt, hr, searching ? null : section, cmp, direction.getSelectedIndex() == 1);
+    }
+
+    private Integer yearFromValue() {
+        int v = (Integer) from.getValue();
+        return v == YEAR_MIN ? null : v;
+    }
+
+    private Integer yearToValue() {
+        int v = (Integer) to.getValue();
+        return v == YEAR_MAX ? null : v;
     }
 
     private Boolean hasAnyFilter() {
-        return section != null || search.getText().trim().length() >= 2 || typeFilter.getSelectedIndex() != 0 || genreFilter.getSelectedIndex() != 0 || !from.getText().isBlank() || !to.getText().isBlank() || ratingFilter.getSelectedIndex() != 0;
-    }
-
-    private Integer parse(String s) {
-        try {
-            return s.isBlank() ? null : Integer.valueOf(s);
-        } catch (Exception e) {
-            return null;
-        }
+        return section != null || search.getText().trim().length() >= 2 || typeFilter.getSelectedIndex() != 0 || genreFilter.getSelectedIndex() != 0 || yearFromValue() != null || yearToValue() != null || ratingFilter.getSelectedIndex() != 0;
     }
 
     private MovieRecord selected() {
@@ -324,7 +352,7 @@ public final class MainFrame extends JFrame {
             service.add(r.title(), r.type(), r.year(), r.genre(), r.status(), r.rating(), r.comment(), r.progress());
             refresh();
         } catch (JournalService.DuplicateRecordException ex) {
-            if (JOptionPane.showConfirmDialog(this, "Запись с таким названием, жанром и годом выпуска уже существует в вашем журнале. Заменить существующую запись?", "Дубликат", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            if (JOptionPane.showOptionDialog(this, "Запись с таким названием, жанром и годом выпуска уже существует в вашем журнале. Заменить существующую запись?", "Дубликат", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Да, добавить", "Отмена"}, "Отмена") == 0) {
                 service.add(r.title(), r.type(), r.year(), r.genre(), r.status(), r.rating(), r.comment(), r.progress(), true);
                 refresh();
             }
@@ -344,7 +372,7 @@ public final class MainFrame extends JFrame {
             service.edit(x.id(), r.title(), r.type(), r.year(), r.genre(), r.status(), r.rating(), r.comment(), r.progress());
             refresh();
         } catch (JournalService.DuplicateRecordException ex) {
-            if (JOptionPane.showConfirmDialog(this, "Запись с таким названием, жанром и годом выпуска уже существует в вашем журнале. Заменить существующую запись?", "Дубликат", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            if (JOptionPane.showOptionDialog(this, "Запись с таким названием, жанром и годом выпуска уже существует в вашем журнале. Заменить существующую запись?", "Дубликат", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Да, добавить", "Отмена"}, "Отмена") == 0) {
                 service.edit(x.id(), r.title(), r.type(), r.year(), r.genre(), r.status(), r.rating(), r.comment(), r.progress(), true);
                 refresh();
             }
@@ -353,21 +381,33 @@ public final class MainFrame extends JFrame {
         }
     }
 
-    private void incrementEpisode() {
-        MovieRecord x = selected();
-        if (x == null || x.contentType() != ContentType.SERIES) return;
+    private void incrementEpisode(int modelRow) {
+        MovieRecord x = rows.get(modelRow);
+        if (x == null || x.contentType() != ContentType.SERIES || x.seriesProgress() == null) return;
+        int idx = firstIncompleteSeason(x.seriesProgress());
+        if (idx < 0) return;
         try {
-            service.incrementEpisode(x.id(), seasonBox.getSelectedIndex());
+            service.incrementEpisode(x.id(), idx);
             refresh();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, ex.getMessage(), "Прогресс", JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
+    private int firstIncompleteSeason(SeriesProgress p) {
+        for (int i = 0; i < p.episodesPerSeason().size(); i++)
+            if (p.watchedEpisodesPerSeason().get(i) < p.episodesPerSeason().get(i)) return i;
+        return -1;
+    }
+
+    private boolean allSeasonsComplete(SeriesProgress p) {
+        return firstIncompleteSeason(p) < 0;
+    }
+
     private void deleteSelected() {
         MovieRecord x = selected();
         if (x == null) return;
-        if (JOptionPane.showConfirmDialog(this, "Удалить запись \"" + x.title() + "\"? Это действие необратимо.", "Удаление", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+        if (JOptionPane.showOptionDialog(this, "Удалить запись \"" + x.title() + "\"? Это действие необратимо.", "Удаление", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Удалить", "Отмена"}, "Отмена") == 0) {
             service.delete(x.id());
             refresh();
         }
@@ -376,21 +416,32 @@ public final class MainFrame extends JFrame {
     private void changeStatus(Status s) {
         MovieRecord x = selected();
         if (x == null) return;
-        if (x.status() == Status.WATCHED && s != Status.WATCHED && JOptionPane.showConfirmDialog(this, "При смене статуса оценка сбросится, вы уверены, что хотите сменить статус?", "Смена статуса", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
-            return;
-        service.changeStatus(x.id(), s);
-        if (s == Status.WATCHED) {
-            String v = JOptionPane.showInputDialog(this, "Выставьте оценку от 1 до 10 (Отмена — пропустить):");
-            if (v != null && !v.isBlank()) try {
-                service.setRating(x.id(), Integer.valueOf(v));
-            } catch (Exception ex) {
-                JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+        boolean toWatched = s == Status.WATCHED;
+        if (x.status() == Status.WATCHED && !toWatched) {
+            if (JOptionPane.showOptionDialog(this, "При смене статуса оценка сбросится, вы уверены, что хотите сменить статус?", "Смена статуса", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Сменить статус", "Отмена"}, "Отмена") != 0)
+                return;
+        }
+        if (toWatched && x.status() != Status.WATCHED) {
+            JComboBox<Integer> box = new JComboBox<>();
+            for (int i = 1; i <= 10; i++) box.addItem(i);
+            int opt = JOptionPane.showOptionDialog(this, box, "Оценка", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, new Object[]{"Сохранить оценку", "Пропустить"}, "Пропустить");
+            if (opt == JOptionPane.CLOSED_OPTION) return;
+            service.changeStatus(x.id(), s);
+            if (opt == 0) {
+                try {
+                    service.setRating(x.id(), (Integer) box.getSelectedItem());
+                } catch (Exception ex) {
+                    JOptionPane.showMessageDialog(this, ex.getMessage(), "Ошибка", JOptionPane.ERROR_MESSAGE);
+                }
             }
+        } else {
+            service.changeStatus(x.id(), s);
         }
         refresh();
     }
 
     private void updateNote() {
+        saveNote();
         MovieRecord x = selected();
         note.setText(x == null ? "" : x.comment());
         noteLabel.setText(x == null ? "Заметка" : "Заметка: " + x.title());
@@ -414,7 +465,7 @@ public final class MainFrame extends JFrame {
                 Path dir = fc.getSelectedFile().toPath();
                 String name = "CinemaLog_backup_" + String.format("%02d-%02d-%04d", java.time.LocalDate.now().getDayOfMonth(), java.time.LocalDate.now().getMonthValue(), java.time.LocalDate.now().getYear()) + ".clbackup";
                 Path existing = dir.resolve(name);
-                if (Files.exists(existing) && JOptionPane.showConfirmDialog(this, "Файл с таким именем уже существует, хотите заменить?", "Резервная копия", JOptionPane.YES_NO_OPTION) != JOptionPane.YES_OPTION)
+                if (Files.exists(existing) && JOptionPane.showOptionDialog(this, "Файл с таким именем уже существует, хотите заменить?", "Резервная копия", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Заменить", "Отмена"}, "Отмена") != 0)
                     return;
                 Path p = backup.create(dir);
                 JOptionPane.showMessageDialog(this, "Резервная копия успешно создана: " + p.toAbsolutePath());
@@ -428,7 +479,7 @@ public final class MainFrame extends JFrame {
         JFileChooser fc = new JFileChooser();
         fc.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("CinemaLog backup (*.clbackup)", "clbackup"));
         if (fc.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
-            if (JOptionPane.showConfirmDialog(this, "Восстановление из резервной копии заменит все текущие данные. Это действие необратимо. Продолжить?", "Восстановление", JOptionPane.YES_NO_OPTION) == JOptionPane.YES_OPTION) {
+            if (JOptionPane.showOptionDialog(this, "Восстановление из резервной копии заменит все текущие данные. Это действие необратимо. Продолжить?", "Восстановление", JOptionPane.DEFAULT_OPTION, JOptionPane.WARNING_MESSAGE, null, new Object[]{"Восстановить", "Отмена"}, "Отмена") == 0) {
                 try {
                     backup.restore(fc.getSelectedFile().toPath());
                     refresh();
@@ -444,5 +495,44 @@ public final class MainFrame extends JFrame {
         JournalService.Statistics s = service.statistics();
         String msg = s.total() == 0 ? "Статистика появится после того, как вы добавите первые записи" : ("Всего записей в журнале: " + s.total() + "\nПросмотрено фильмов: " + s.watchedFilms() + "\nПросмотрено сериалов: " + s.watchedSeries() + "\nСредняя оценка: " + (s.averageRating() == null ? "—" : s.averageRating()) + "\nЛюбимый жанр: " + (s.favoriteGenre() == null ? "—" : s.favoriteGenre()) + "\nЛучшая оценка: " + String.join(", ", s.bestRated()));
         JOptionPane.showMessageDialog(this, msg, "Статистика", JOptionPane.INFORMATION_MESSAGE);
+    }
+
+    private class ProgressButtonRenderer extends JButton implements TableCellRenderer {
+        ProgressButtonRenderer() { setOpaque(true); }
+        public Component getTableCellRendererComponent(JTable t, Object value, boolean selected, boolean focused, int row, int column) {
+            int m = t.convertRowIndexToModel(row);
+            MovieRecord x = (m >= 0 && m < rows.size()) ? rows.get(m) : null;
+            if (x != null && x.contentType() == ContentType.SERIES && x.seriesProgress() != null) {
+                boolean complete = allSeasonsComplete(x.seriesProgress());
+                setText("+1 серия");
+                setEnabled(!complete);
+                setToolTipText(complete ? "Вы посмотрели все серии в сезоне" : null);
+            } else {
+                setText("");
+                setEnabled(false);
+                setToolTipText(null);
+            }
+            return this;
+        }
+    }
+
+    private class ProgressButtonEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
+        private final JButton button = new JButton("+1 серия");
+        private int modelRow;
+        ProgressButtonEditor() { button.addActionListener(this); }
+        public Component getTableCellEditorComponent(JTable t, Object value, boolean selected, int row, int column) {
+            modelRow = t.convertRowIndexToModel(row);
+            MovieRecord x = (modelRow >= 0 && modelRow < rows.size()) ? rows.get(modelRow) : null;
+            boolean complete = x == null || x.seriesProgress() == null || allSeasonsComplete(x.seriesProgress());
+            button.setEnabled(!complete);
+            button.setToolTipText(complete ? "Вы посмотрели все серии в сезоне" : null);
+            return button;
+        }
+        public Object getCellEditorValue() { return ""; }
+        public boolean isCellEditable(EventObject e) { return true; }
+        public void actionPerformed(ActionEvent e) {
+            if (modelRow >= 0 && modelRow < rows.size()) incrementEpisode(modelRow);
+            fireEditingStopped();
+        }
     }
 }

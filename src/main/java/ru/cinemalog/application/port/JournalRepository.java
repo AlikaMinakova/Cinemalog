@@ -12,5 +12,6 @@ public interface JournalRepository {
     Optional<MovieRecord> findById(UUID id);
     List<MovieRecord> findAll();
     boolean existsDuplicate(String title, String genre, Integer year, UUID excludingId);
+    Optional<MovieRecord> findDuplicate(String title, String genre, Integer year, UUID excludingId);
     void replaceAll(List<MovieRecord> records);
 }

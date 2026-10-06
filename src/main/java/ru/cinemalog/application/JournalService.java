@@ -25,7 +25,15 @@ public final class JournalService {
     public MovieRecord add(String title, ContentType type, Integer year, Genre genre, Status status, Integer rating, String comment, SeriesProgress progress) { return add(title, type, year, genre, status, rating, comment, progress, false); }
     public MovieRecord add(String title, ContentType type, Integer year, Genre genre, Status status, Integer rating, String comment, SeriesProgress progress, Boolean allowDuplicate) {
         validate(title, type, year, genre, status, rating, comment, progress);
-        if (!allowDuplicate && repository.existsDuplicate(title, genre == null ? null : genre.name(), year, null))
+        if (allowDuplicate) {
+            Optional<MovieRecord> existing = repository.findDuplicate(title.trim(), genre == null ? null : genre.name(), year, null);
+            if (existing.isPresent()) {
+                MovieRecord r = existing.get();
+                r.update(title.trim(), type, year, genre, status, rating, comment, progress);
+                repository.update(r);
+                return r;
+            }
+        } else if (repository.existsDuplicate(title, genre == null ? null : genre.name(), year, null))
             throw new DuplicateRecordException("Запись с таким названием, жанром и годом выпуска уже существует в вашем журнале.");
         MovieRecord record = MovieRecord.newRecord(title.trim(), type, year, genre, status, rating, comment, progress, LocalDateTime.now(clock));
         repository.save(record);
