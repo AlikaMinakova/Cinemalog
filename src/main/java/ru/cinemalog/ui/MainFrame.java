@@ -10,6 +10,7 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -49,6 +50,9 @@ public final class MainFrame extends JFrame {
         setSize(1200, 750);
         setLocationRelativeTo(null);
         build();
+        Toolkit.getDefaultToolkit().addAWTEventListener(event -> {
+            if (event.getID() == MouseEvent.MOUSE_PRESSED) saveNote();
+        }, AWTEvent.MOUSE_EVENT_MASK);
         refresh();
     }
 
@@ -252,13 +256,16 @@ public final class MainFrame extends JFrame {
                     case 5 -> x.rating();
                     case 6 -> progress(x);
                     case 7 -> (x.contentType() == ContentType.SERIES && x.seriesProgress() != null) ? "+1 серия" : "—";
-                    default -> x.addedAt().toString();
+                    default -> x.addedAt().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
                 };
             }
 
             private String progress(MovieRecord x) {
                 if (x.contentType() != ContentType.SERIES || x.seriesProgress() == null) return "—";
-                return x.seriesProgress().watchedSeasons() + " / " + x.seriesProgress().totalSeasons() + " сезонов";
+                SeriesProgress p = x.seriesProgress();
+                int we = p.watchedEpisodesPerSeason().stream().mapToInt(Integer::intValue).sum();
+                int te = p.episodesPerSeason().stream().mapToInt(Integer::intValue).sum();
+                return p.watchedSeasons() + " / " + p.totalSeasons() + " сезонов, " + we + " / " + te + " серий";
             }
         };
     }
