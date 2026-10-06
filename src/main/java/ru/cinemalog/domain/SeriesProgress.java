@@ -28,6 +28,7 @@ public final class SeriesProgress {
         if (current >= max) throw new IllegalStateException("Вы посмотрели все серии в сезоне");
         int next = current + 1;
         watchedEpisodesPerSeason.set(seasonIndex, next);
+        if (next >= max && watchedSeasons < totalSeasons) watchedSeasons++;
         return next;
     }
 }

@@ -34,6 +34,7 @@ public final class MainFrame extends JFrame {
     private final JComboBox<String> direction = new JComboBox<>(new String[]{"По возрастанию", "По убыванию"});
     private Status section = null;
     private List<MovieRecord> rows = List.of();
+    private MovieRecord noteOwner;
 
     public MainFrame(JournalService service, BackupService backup) {
         super("CinemaLog");
@@ -371,6 +372,7 @@ public final class MainFrame extends JFrame {
     private void editSelected() {
         MovieRecord x = selected();
         if (x == null) return;
+        saveNote();
         RecordDialog d = new RecordDialog(this, "Редактирование записи", x);
         d.setVisible(true);
         RecordDialog.Result r = d.result();
@@ -450,15 +452,19 @@ public final class MainFrame extends JFrame {
     private void updateNote() {
         saveNote();
         MovieRecord x = selected();
-        note.setText(x == null ? "" : x.comment());
+        if (noteOwner == null || x == null || !noteOwner.id().equals(x.id())) {
+            note.setText(x == null ? "" : x.comment());
+        }
+        noteOwner = x;
         noteLabel.setText(x == null ? "Заметка" : "Заметка: " + x.title());
     }
 
     private void saveNote() {
-        MovieRecord x = selected();
+        MovieRecord x = noteOwner;
         if (x != null && !note.getText().equals(x.comment())) {
             try {
                 service.setComment(x.id(), note.getText());
+                x.setComment(note.getText());
             } catch (Exception ignored) {
             }
         }
