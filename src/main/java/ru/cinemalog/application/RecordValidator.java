@@ -19,7 +19,7 @@ public final class RecordValidator {
         return e;
     }
     private void validateSeries(SeriesProgress p, Map<String, String> e) {
-        if (p == null) { e.put("seriesProgress", "«Всего сезонов» обязательно для заполнения"); return; }
+        if (p == null) { e.put("seriesProgress", "Сезонов не может быть более 99 и менее 1"); return; }
         if (p.totalSeasons() < 1 || p.totalSeasons() > 99) e.put("totalSeasons", "Сезонов не может быть более 99 и менее 1");
         if (p.episodesPerSeason().size() != p.totalSeasons()) e.put("episodesPerSeason", "Количество значений серий должно совпадать с количеством сезонов");
         if (p.watchedSeasons() < 0 || p.watchedSeasons() > p.totalSeasons()) e.put("watchedSeasons", "Просмотрено сезонов не может быть более «Всего сезонов» и менее 0");

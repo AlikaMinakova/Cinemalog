@@ -13,7 +13,7 @@ import java.util.*;
 public final class RecordDialog extends JDialog {
     public record Result(String title, ContentType type, Integer year, Genre genre, Status status, Integer rating, String comment, SeriesProgress progress) {}
     private final JTextField title = new JTextField(28); private final JComboBox<ContentType> type = new JComboBox<>(ContentType.values());
-    private final JSpinner year = new JSpinner(new SpinnerNumberModel(LocalDate.now().getYear(), 1888, 9999, 1));
+    private final JSpinner year = new JSpinner(new SpinnerNumberModel(LocalDate.now().getYear(), Integer.MIN_VALUE, 9999, 1));
     private final JComboBox<Genre> genre = new JComboBox<>(Genre.values()); private final JComboBox<Status> status = new JComboBox<>(Status.values()); private final JComboBox<Integer> rating = new JComboBox<>(); private final JTextArea comment = new JTextArea(5,28);
     private final JPanel seriesPanel = new JPanel(new BorderLayout(6, 6)); private final JTextField totalSeasons = new JTextField(5); private final JTextField watchedSeasons = new JTextField(5); private final JPanel seasonsRows = new JPanel(); private final JScrollPane seasonsScroll = new JScrollPane(seasonsRows);
     private final JLabel error = new JLabel(" "); private Result result; private final SeriesProgress initialProgress;
@@ -51,12 +51,12 @@ public final class RecordDialog extends JDialog {
         if(title.getText().isBlank()){closeWithRequiredError("Название");return;}
         if(ct==null){closeWithRequiredError("Тип контента");return;}
         if(status.getSelectedItem()==null){closeWithRequiredError("Статус");return;}
-        if(ct==ContentType.SERIES && totalSeasons.getText().trim().isEmpty()){closeWithRequiredError("Всего сезонов");return;}
+        if(ct==ContentType.SERIES && totalSeasons.getText().trim().isEmpty()){closeWithError("Сезонов не может быть более 99 и менее 1");return;}
         Integer y=(Integer)year.getValue();
         if(y!=null && y<1888){closeWithError("Год выпуска должен быть не ранее 1888");return;}
         try{Integer rt=(Integer)rating.getSelectedItem();SeriesProgress sp=null;if(ct==ContentType.SERIES){int n=Integer.parseInt(totalSeasons.getText().trim());int ws=watchedSeasons.getText().isBlank()?0:Integer.parseInt(watchedSeasons.getText());java.util.List<Integer> totals=new ArrayList<>(),watched=new ArrayList<>();for(Component c:seasonsRows.getComponents()){JPanel row=(JPanel)c;JTextField t=(JTextField)row.getComponent(2),w=(JTextField)row.getComponent(4);totals.add(Integer.parseInt(t.getText()));watched.add(Integer.parseInt(w.getText()));}sp=new SeriesProgress(n,totals,ws,watched);}result=new Result(title.getText(),ct,y,(Genre)genre.getSelectedItem(),(Status)status.getSelectedItem(),rt,comment.getText(),sp);dispose();}catch(Exception ex){error.setText(ex.getMessage()==null?"Проверьте введенные данные":ex.getMessage());}}
     private void closeWithRequiredError(String field){closeWithError("«"+field+"» обязательно для заполнения");}
-    private void closeWithError(String message){Window owner=getOwner();dispose();JOptionPane.showMessageDialog(owner,message,"Ошибка",JOptionPane.ERROR_MESSAGE);}
+    private void closeWithError(String message){JOptionPane.showMessageDialog(this,message,"Ошибка",JOptionPane.ERROR_MESSAGE);dispose();}
     public Result result(){return result;}
     public void showValidationErrors(ValidationException ex){error.setText(ex.errors().values().stream().findFirst().orElse("Проверьте данные"));}
 }
