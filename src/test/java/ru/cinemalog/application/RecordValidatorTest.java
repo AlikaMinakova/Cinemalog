@@ -13,7 +13,7 @@ class RecordValidatorTest {
     @Test
     void givenEmptyTitle_whenValidate_thenTitleIsRequired() {
         var e = validator.validate("", ContentType.FILM, null, null, Status.WANT_TO_WATCH, null, "", null);
-        assertEquals("Название обязательно для заполнения", e.get("title"));
+        assertEquals("«Название» обязательно для заполнения", e.get("title"));
     }
 
     @Test
