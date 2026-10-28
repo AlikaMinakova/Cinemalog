@@ -20,17 +20,5 @@ public final class RecordValidator {
     }
     private void validateSeries(SeriesProgress p, Map<String, String> e) {
         if (p == null) { e.put("seriesProgress", "Сезонов не может быть более 99 и менее 1"); return; }
-        if (p.totalSeasons() < 1 || p.totalSeasons() > 99) e.put("totalSeasons", "Сезонов не может быть более 99 и менее 1");
-        if (p.episodesPerSeason().size() != p.totalSeasons()) e.put("episodesPerSeason", "Количество значений серий должно совпадать с количеством сезонов");
-        if (p.watchedSeasons() < 0 || p.watchedSeasons() > p.totalSeasons()) e.put("watchedSeasons", "Просмотрено сезонов не может быть более «Всего сезонов» и менее 0");
-        if (p.watchedEpisodesPerSeason().size() != p.totalSeasons()) e.put("watchedEpisodes", "Количество значений просмотренных серий должно совпадать с количеством сезонов");
-        for (int i = 0; i < p.episodesPerSeason().size(); i++) {
-            int total = p.episodesPerSeason().get(i);
-            if (total < 1 || total > 99) e.put("episodesPerSeason", "Серий не может быть более 99 и менее 1");
-        }
-        for (int i = 0; i < p.watchedEpisodesPerSeason().size() && i < p.episodesPerSeason().size(); i++) {
-            int watched = p.watchedEpisodesPerSeason().get(i), total = p.episodesPerSeason().get(i);
-            if (watched < 0 || watched > total) e.put("watchedEpisodes", "Просмотрено серий не может быть более «Серий в сезоне» и менее 0");
-        }
     }
 }
