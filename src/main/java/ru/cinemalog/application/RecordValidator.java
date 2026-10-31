@@ -11,7 +11,9 @@ public final class RecordValidator {
         if (title == null || title.isBlank()) e.put("title", "«Название» обязательно для заполнения");
         else if (title.length() > 200) e.put("title", "Название должно содержать не более 200 символов с учетом пробелов");
         if (type == null) e.put("contentType", "«Тип контента» обязательно для заполнения");
-        if (year != null && year < 1888) e.put("releaseYear", "Год выпуска должен быть не ранее 1888");
+        if (year == null) e.put("releaseYear", "«Год выпуска» обязательно для заполнения");
+        else if (year < 1888) e.put("releaseYear", "Год выпуска должен быть не ранее 1888");
+        if (genre == null) e.put("genre", "«Жанр» обязательно для заполнения");
         if (status == null) e.put("status", "«Статус» обязательно для заполнения");
         if (rating != null && (rating < 1 || rating > 10)) e.put("rating", "Оценка должна быть целым числом от 1 до 10");
         if (comment != null && comment.length() > 2000) e.put("comment", "Комментарий должен содержать не более 2000 символов с учетом пробелов");

@@ -26,7 +26,7 @@ public final class RecordDialog extends JDialog {
     private void build(MovieRecord initial){
         JPanel root=new JPanel(new BorderLayout(8,8));root.setBorder(new EmptyBorder(10,10,10,10));
         JPanel form=new JPanel(new GridBagLayout()); GridBagConstraints g=new GridBagConstraints();g.insets=new Insets(4,4,4,4);g.anchor=GridBagConstraints.WEST;g.fill=GridBagConstraints.HORIZONTAL;
-        int r=0; add(form,g,r++,"Название*",title);add(form,g,r++,"Тип контента*",type);add(form,g,r++,"Год выпуска",year);add(form,g,r++,"Жанр",genre);add(form,g,r++,"Статус*",status);add(form,g,r++,"Оценка",rating);add(form,g,r++,"Комментарий",new JScrollPane(comment));
+        int r=0; add(form,g,r++,"Название*",title);add(form,g,r++,"Тип контента*",type);add(form,g,r++,"Год выпуска*",year);add(form,g,r++,"Жанр*",genre);add(form,g,r++,"Статус*",status);add(form,g,r++,"Оценка",rating);add(form,g,r++,"Комментарий",new JScrollPane(comment));
         JPanel seriesHeader=new JPanel(new GridBagLayout());GridBagConstraints sg=new GridBagConstraints();sg.insets=new Insets(3,3,3,3);sg.anchor=GridBagConstraints.WEST;
         sg.gridx=0;sg.gridy=0;seriesHeader.add(new JLabel("Всего сезонов*"),sg);sg.gridx=1;seriesHeader.add(totalSeasons,sg);sg.gridx=2;seriesHeader.add(new JLabel("Просмотрено сезонов"),sg);sg.gridx=3;seriesHeader.add(watchedSeasons,sg);
         seriesPanel.setBorder(BorderFactory.createTitledBorder("Данные сериала")); seriesPanel.setVisible(false); seriesPanel.add(seriesHeader,BorderLayout.NORTH); seriesPanel.add(seasonsScroll,BorderLayout.CENTER);
@@ -51,9 +51,11 @@ public final class RecordDialog extends JDialog {
         if(title.getText().isBlank()){closeWithRequiredError("Название");return;}
         if(ct==null){closeWithRequiredError("Тип контента");return;}
         if(status.getSelectedItem()==null){closeWithRequiredError("Статус");return;}
+        if(genre.getSelectedItem()==null){closeWithRequiredError("Жанр");return;}
         if(ct==ContentType.SERIES && totalSeasons.getText().trim().isEmpty()){closeWithError("Сезонов не может быть более 99 и менее 1");return;}
         Integer y=(Integer)year.getValue();
-        if(y!=null && y<1888){closeWithError("Год выпуска должен быть не ранее 1888");return;}
+        if(y==null){closeWithRequiredError("Год выпуска");return;}
+        if(y<1888){closeWithError("Год выпуска должен быть не ранее 1888");return;}
         try{Integer rt=(Integer)rating.getSelectedItem();SeriesProgress sp=null;if(ct==ContentType.SERIES){int n=Integer.parseInt(totalSeasons.getText().trim());int ws=watchedSeasons.getText().isBlank()?0:Integer.parseInt(watchedSeasons.getText());java.util.List<Integer> totals=new ArrayList<>(),watched=new ArrayList<>();for(Component c:seasonsRows.getComponents()){JPanel row=(JPanel)c;JTextField t=(JTextField)row.getComponent(2),w=(JTextField)row.getComponent(4);totals.add(Integer.parseInt(t.getText()));watched.add(Integer.parseInt(w.getText()));}sp=new SeriesProgress(n,totals,ws,watched);}result=new Result(title.getText(),ct,y,(Genre)genre.getSelectedItem(),(Status)status.getSelectedItem(),rt,comment.getText(),sp);dispose();}catch(Exception ex){String msg=ex.getMessage()==null?"Проверьте введенные данные":ex.getMessage();error.setText(msg);JOptionPane.showMessageDialog(this,msg,"Ошибка",JOptionPane.ERROR_MESSAGE);}}
     private void closeWithRequiredError(String field){closeWithError("«"+field+"» обязательно для заполнения");}
     private void closeWithError(String message){JOptionPane.showMessageDialog(this,message,"Ошибка",JOptionPane.ERROR_MESSAGE);dispose();}

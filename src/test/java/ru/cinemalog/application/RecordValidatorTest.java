@@ -24,6 +24,12 @@ class RecordValidatorTest {
   }
 
   @Test
+  void givenMissingYear_whenValidate_thenYearIsRequired() {
+    var e = validator.validate("A", ContentType.FILM, null, null, Status.WANT_TO_WATCH, null, "", null);
+    assertEquals("«Год выпуска» обязательно для заполнения", e.get("releaseYear"));
+  }
+
+  @Test
   void givenYearBefore1888_whenValidate_thenYearIsRejected() {
     var e = validator.validate("A", ContentType.FILM, 1887, null, Status.WANT_TO_WATCH, null, "", null);
     assertEquals("Год выпуска должен быть не ранее 1888", e.get("releaseYear"));
@@ -48,9 +54,15 @@ class RecordValidatorTest {
   }
 
   @Test
+  void givenMissingGenre_whenValidate_thenGenreIsRequired() {
+    var e = validator.validate("A", ContentType.FILM, 2020, null, Status.WANT_TO_WATCH, null, "", null);
+    assertEquals("«Жанр» обязательно для заполнения", e.get("genre"));
+  }
+
+  @Test
   void givenValidSeriesProgress_whenValidate_thenNoErrors() {
     var p = mock(SeriesProgress.class);
-    assertTrue(validator.validate("A", ContentType.SERIES, 2020, null, Status.WANT_TO_WATCH, null, "", p).isEmpty());
+    assertTrue(validator.validate("A", ContentType.SERIES, 2020, Genre.DRAMA, Status.WANT_TO_WATCH, null, "", p).isEmpty());
   }
 
   @Test
